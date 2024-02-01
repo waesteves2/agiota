@@ -1,0 +1,418 @@
+<!DOCTYPE html>
+<html lang="pt">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Registro de Empréstimo</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css">
+    <link rel="shortcut icon" href="https://cdn-icons-png.flaticon.com/512/3444/3444339.png" type="image/x-icon">
+</head>
+
+<body>
+
+
+    <div class="container">
+        <button onclick="openModal()">
+            <i class="fas fa-plus"></i> Adicionar
+        </button>
+        <button onclick="resetValues()">
+            <i class="fas fa-sync-alt"></i> Resetar
+        </button>
+        <h2>Lista de Cobrança</h2>
+        <p id="totalValue">Valor Total: R$ 0.00</p>
+        <ul id="list"></ul>
+    </div>
+
+
+    <div id="detailsModal" class="modal">
+        <div class="modal-content">
+            <span onclick="closeDetailsModal()" style="float: right; cursor: pointer; color:red;"><i
+                    class="fas fa-times"></i></span>
+            <h2>Detalhes do Contratante</h2>
+            <div id="detailsContent"></div>
+        </div>
+    </div>
+
+
+    <div id="myModal" class="modal">
+        <div class="modal-content">
+            <span onclick="closeModal()" style="float: right; margin-top: 15px;  cursor: pointer; color: red"><i
+                    class="fas fa-times"></i></span>
+            <h2>Informações de Contato</h2>
+            <label for="nomeCompleto">Nome Completo:</label>
+            <input type="text" id="nomeCompleto">
+
+            <label for="cpf">CPF:</label>
+            <input type="text" id="cpf">
+
+            <label for="telefone">Telefone:</label>
+            <input type="text" id="telefone">
+
+            <label for="cep">CEP:</label>
+            <input type="text" id="cep" onblur="buscarCep('cep', 'remetente')">
+
+            <label for="remetente-endereco">Endereço:</label>
+            <input type="text" id="remetente-endereco">
+
+            <label for="remetente-bairro">Bairro:</label>
+            <input type="text" id="remetente-bairro">
+
+            <label for="remetente-cidade">Cidade:</label>
+            <input type="text" id="remetente-cidade">
+
+
+            <label for="valorEmprestimo">Valor do Empréstimo:</label>
+            <input type="text" id="valorEmprestimo">
+
+            <label for="parcelas">Quantidade de Parcelas:</label>
+            <input type="text" id="parcelas">
+
+            <button onclick="calcularJuros()">
+                <i class="fas fa-calculator"></i> Calcular Juros
+            </button>
+
+            <button onclick="salvarInformacoes()">
+                <i class="fas fa-save"></i> Salvar
+            </button>
+
+        </div>
+    </div>
+
+
+    <script>
+        function toUpperCaseFields() {
+            const textInputs = document.querySelectorAll('input[type="text"]');
+            textInputs.forEach(input => {
+                input.addEventListener('input', function () {
+                    this.value = this.value.toUpperCase();
+                });
+            });
+        }
+
+        function formatCPF(cpfInputId) {
+            const cpfInput = document.getElementById(cpfInputId);
+            cpfInput.addEventListener('input', function () {
+                let value = this.value.replace(/\D/g, '');
+                if (value.length > 11) {
+                    value = value.slice(0, 11);
+                }
+                value = value.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4');
+                this.value = value;
+            });
+        }
+        function resetValues() {
+            // Solicitar a senha com um campo de senha
+            var senhaDigitada = prompt("Digite a senha:");
+
+            // Verificar se a senha está correta (use a sua senha real aqui)
+            if (senhaDigitada === "0202") {
+                // Limpar os valores salvos no localStorage
+                localStorage.removeItem("emprestimos");
+
+                // Atualizar a lista na tela
+                updateList();
+            } else {
+                alert("Senha incorreta. Tente novamente.");
+            }
+        }
+
+        function formatTelefone(telefoneInputId) {
+            const telefoneInput = document.getElementById(telefoneInputId);
+            telefoneInput.addEventListener('input', function () {
+                let value = this.value.replace(/\D/g, '');
+                if (value.length > 11) {
+                    value = value.slice(0, 11);
+                }
+                value = value.replace(/(\d{2})(\d{5})(\d{4})/, '($1) $2-$3');
+                this.value = value;
+            });
+        }
+
+        toUpperCaseFields();
+        formatCPF('cpf');
+        formatTelefone('telefone');
+    </script>
+
+    <script>
+        function openDetailsModal(index) {
+            const emprestimosSalvos = JSON.parse(localStorage.getItem("emprestimos")) || [];
+            const emprestimo = emprestimosSalvos[index];
+
+            // Calcula apenas o valor dos juros (20%)
+            const valorJuros = emprestimo.valorEmprestimo * 0.20;
+
+            // Calcula o valor de cada parcela
+            const valorParcela = (emprestimo.valorEmprestimo + valorJuros) / emprestimo.parcelas;
+
+            const detailsContent = document.getElementById("detailsContent");
+            detailsContent.innerHTML = `
+        <p><strong>Nome Completo:</strong> ${emprestimo.nomeCompleto}</p>
+        <p><strong>CPF:</strong> ${emprestimo.cpf}</p>
+        <p><strong>Telefone:</strong> ${emprestimo.telefone}</p>
+        <p><strong>CEP:</strong> ${emprestimo.cep}</p>
+        <p><strong>Endereço:</strong> ${emprestimo.endereco}</p>
+        <p><strong>Bairro:</strong> ${emprestimo.bairro}</p>
+        <p><strong>Cidade:</strong> ${emprestimo.cidade}</p>
+        <p><strong data-label="valorEmprestimo">Valor do Empréstimo:</strong> ${emprestimo.valorEmprestimo.toFixed(2)}</p>
+        <p><strong>Quantidade de Parcelas:</strong> ${emprestimo.parcelas}</p>
+        
+        <!-- Adicione o campo de entrada para o valor pago -->
+        <label for="valorPago">Valor Pago:</label>
+        <input type="text" id="valorPago" placeholder="Digite o valor pago">
+
+        <button onclick="subtrairValorPago(${index})">Subtrair Valor Pago</button>
+        <!-- Adicione o restante das informações -->
+    `;
+
+            document.getElementById("detailsModal").style.display = "flex";
+        }
+
+
+        function subtrairValorPago(index) {
+            const emprestimosSalvos = JSON.parse(localStorage.getItem("emprestimos")) || [];
+            const emprestimo = emprestimosSalvos[index];
+
+            // Obtenha o valor pago do campo de entrada
+            const valorPago = parseFloat(document.getElementById("valorPago").value) || 0;
+
+            // Subtraia o valor pago do valor do empréstimo (sem recalcular os juros)
+            emprestimo.valorEmprestimo -= valorPago;
+
+            // Reduza a quantidade de parcelas em 1
+            emprestimo.parcelas--;
+
+            // Atualize o objeto empréstimo no array
+            emprestimosSalvos[index] = emprestimo;
+
+            // Salve novamente no localStorage
+            localStorage.setItem("emprestimos", JSON.stringify(emprestimosSalvos));
+
+            // Atualize a lista na tela
+            updateList();
+
+            // Atualize o texto do valor do empréstimo e da quantidade de parcelas no modal
+            const valorEmprestimoElement = document.querySelector('#detailsContent p strong[data-label="valorEmprestimo"]');
+            const parcelasElement = document.querySelector('#detailsContent p strong[data-label="parcelas"]');
+
+            if (valorEmprestimoElement && parcelasElement) {
+                valorEmprestimoElement.textContent = ` ${emprestimo.valorEmprestimo.toFixed(2)}`;
+                parcelasElement.textContent = ` ${emprestimo.parcelas}`;
+            }
+
+            // Atualize o valor na tela imediatamente, sem fechar o modal
+            openDetailsModal(index);
+        }
+
+
+        function closeDetailsModal() {
+            document.getElementById("detailsModal").style.display = "none";
+        }
+
+
+    </script>
+
+    <script>
+        function calcularParcelas(valorComJuros, parcelas) {
+            const valorParcela = (valorComJuros / parcelas).toFixed(2);
+            return valorParcela;
+        }
+
+        // Restante do código...
+    </script>
+
+
+
+
+    <script>
+
+
+        function openModal() {
+            document.getElementById("myModal").style.display = "flex";
+        }
+
+        function closeModal() {
+            document.getElementById("myModal").style.display = "none";
+        }
+        function buscarCep(cepId, tipo) {
+            const cepInput = document.getElementById(cepId);
+            const cep = cepInput.value.replace(/\D/g, ''); // Remove caracteres não numéricos
+
+            if (cep.length !== 8) {
+                return;
+            }
+
+            fetch(`https://viacep.com.br/ws/${cep}/json/`)
+                .then(response => response.json())
+                .then(data => preencherEndereco(data, tipo))
+                .catch(error => console.error('Erro ao buscar CEP:', error));
+        }
+
+        function preencherEndereco(data, tipo) {
+            const prefixo = tipo === 'remetente' ? 'remetente' : 'destinatario';
+
+            const enderecoInput = document.getElementById(`${prefixo}-endereco`);
+            const bairroInput = document.getElementById(`${prefixo}-bairro`);
+            const cidadeInput = document.getElementById(`${prefixo}-cidade`);
+
+            if (enderecoInput && bairroInput && cidadeInput) {
+                enderecoInput.value = data.logradouro.toUpperCase();
+                bairroInput.value = data.bairro.toUpperCase();
+                cidadeInput.value = data.localidade.toUpperCase();
+            } else {
+                console.error('Elementos de endereço não encontrados.');
+            }
+        }
+
+
+        function calcularJuros() {
+            // Obtenha o valor do empréstimo do campo de entrada
+            const valorEmprestimo = parseFloat(document.getElementById("valorEmprestimo").value) || 0;
+
+            // Calcule o valor dos juros (20%)
+            const valorJuros = valorEmprestimo * 0.20;
+
+            // Calcule o valor total com juros
+            const valorComJuros = valorEmprestimo + valorJuros;
+
+            // Atualize o campo de valor do empréstimo com juros
+            document.getElementById("valorEmprestimo").value = valorComJuros.toFixed(2);
+
+            // Retorne o valor com juros para que possa ser utilizado em outras partes do código, se necessário
+            return valorComJuros;
+        }
+
+
+
+        function salvarInformacoes() {
+            const nomeCompleto = document.getElementById("nomeCompleto").value;
+            const cpf = document.getElementById("cpf").value;
+            const telefone = document.getElementById("telefone").value;
+            const cep = document.getElementById("cep").value;
+            const endereco = document.getElementById("remetente-endereco").value;
+            const bairro = document.getElementById("remetente-bairro").value;
+            const cidade = document.getElementById("remetente-cidade").value;
+            const valorEmprestimo = parseFloat(document.getElementById("valorEmprestimo").value);
+            const parcelas = parseInt(document.getElementById("parcelas").value);
+
+
+            // Calcula o valor de cada parcela
+            const valorComJuros = calcularJuros();
+
+
+            const emprestimo = {
+                nomeCompleto: nomeCompleto,
+                cpf: cpf,
+                telefone: telefone,
+                cep: cep,
+                endereco: endereco,
+                bairro: bairro,
+                cidade: cidade,
+                valorEmprestimo: valorEmprestimo,
+                parcelas: parcelas,
+                valorComJuros: valorComJuros,
+                // Adicione o restante das informações
+            };
+
+            // Verifique se já existe algo salvo
+            const emprestimosSalvos = JSON.parse(localStorage.getItem("emprestimos")) || [];
+
+            // Remova o empréstimo atual, se existir
+            const emprestimoExistenteIndex = emprestimosSalvos.findIndex(e => e.nomeCompleto === nomeCompleto);
+            if (emprestimoExistenteIndex !== -1) {
+                emprestimosSalvos.splice(emprestimoExistenteIndex, 1);
+            }
+
+            // Adicione o empréstimo à lista
+            emprestimosSalvos.push(emprestimo);
+
+            // Remova os empréstimos com saldo zerado
+            const emprestimosFiltrados = emprestimosSalvos.filter(e => e.valorEmprestimo > 0);
+
+
+            localStorage.setItem("emprestimos", JSON.stringify(emprestimosFiltrados));
+
+            // Atualize a lista na tela
+            updateList();
+
+            // Feche o modal
+            closeModal();
+        }
+
+
+        function updateList() {
+            const listContainer = document.getElementById("list");
+            const totalValueElement = document.getElementById("totalValue");
+
+            listContainer.innerHTML = "";
+
+            const emprestimosSalvos = JSON.parse(localStorage.getItem("emprestimos")) || [];
+            let totalValue = 0;
+
+            emprestimosSalvos.forEach((emprestimo, index) => {
+                const listItem = document.createElement("li");
+                listItem.innerHTML = `<a href="#" onclick="openDetailsModal(${index})">${emprestimo.nomeCompleto}</a>`;
+                listContainer.appendChild(listItem);
+
+                totalValue += emprestimo.valorEmprestimo;
+            });
+
+            // Atualize o valor total na tela
+            totalValueElement.textContent = `Valor Total: R$ ${totalValue.toFixed(2)}`;
+        }
+
+
+        function viewDetails(index) {
+            // Implemente a lógica para visualizar detalhes do empréstimo
+            alert(`Detalhes do Empréstimo ${index}`);
+        }
+
+        // Atualize a lista na inicialização
+        updateList();
+
+
+
+    </script>
+
+    <script>
+
+        function isDayTime() {
+            const now = new Date();
+            const hours = now.getHours();
+
+            // Defina os horários em que considera-se "dia" e "noite"
+            const dayStart = 7; // 7 AM
+            const dayEnd = 19; // 7 PM
+
+            return hours >= dayStart && hours < dayEnd;
+        }
+
+        function applyDayNightTheme() {
+            const isDay = isDayTime();
+            const container = document.querySelector('.container');
+
+            if (isDay) {
+                // Aplica o tema para o modo dia
+                container.style.backgroundColor = '#ffffff'; // Cor de fundo branca
+                container.style.color = '#000000'; // Texto preto
+            } else {
+                // Aplica o tema para o modo noite
+                container.style.backgroundColor = '#000000'; // Cor de fundo preta
+                container.style.color = '#ffffff'; // Texto branco
+            }
+        }
+        function updateList() {
+            // ...
+            applyDayNightTheme();
+        }
+
+        // ...
+
+        // Chame applyDayNightTheme ao carregar a página
+        applyDayNightTheme();
+    </script>
+
+</body>
+
+</html>
